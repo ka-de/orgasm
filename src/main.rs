@@ -114,8 +114,14 @@ async fn test_postgres_connection(
 
     println!("Executing PostgreSQL query...");
     match client.query("SELECT 1", &[]).await {
-        Ok(rows) => println!("PostgreSQL query result: {:?}", rows),
-        Err(e) => eprintln!("PostgreSQL query failed: {}", e),
+        Ok(rows) => {
+            println!("PostgreSQL query result: {:?}", rows);
+            println!("Successfully connected to PostgreSQL!");
+        }
+        Err(e) => {
+            eprintln!("PostgreSQL query failed: {}", e);
+            eprintln!("Failed to connect to PostgreSQL.");
+        }
     }
 
     Ok(())
@@ -137,8 +143,14 @@ async fn test_redis_connection(
     })?;
 
     match conn.get::<_, String>("key").await {
-        Ok(value) => println!("Redis query result: {}", value),
-        Err(e) => eprintln!("Failed to get Redis value: {}", e),
+        Ok(value) => {
+            println!("Redis query result: {}", value);
+            println!("Successfully connected to Redis!");
+        }
+        Err(e) => {
+            eprintln!("Failed to get Redis value: {}", e);
+            eprintln!("Failed to connect to Redis.");
+        }
     }
 
     Ok(())
