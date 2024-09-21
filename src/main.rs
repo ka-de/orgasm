@@ -5,14 +5,26 @@ use redis::AsyncCommands;
 use tokio_postgres::NoTls;
 use dotenvy::dotenv;
 use std::env;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    debug: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    // Debug print to check if environment variables are loaded
-    for (key, value) in env::vars() {
-        println!("{key}: {value}");
+    let args = Args::parse();
+
+    if args.debug {
+        // Debug print to check if environment variables are loaded
+        for (key, value) in env::vars() {
+            println!("{key}: {value}");
+        }
     }
 
     let database_url = env
