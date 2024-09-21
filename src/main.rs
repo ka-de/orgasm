@@ -10,6 +10,11 @@ use std::env;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
+    // Debug print to check if environment variables are loaded
+    for (key, value) in env::vars() {
+        println!("{key}: {value}");
+    }
+
     let database_url = env
         ::var("DATABASE_URL")
         .expect("DATABASE_URL must be set in the environment or .env file");
