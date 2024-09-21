@@ -7,17 +7,21 @@ use dotenv::dotenv;
 use std::env;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let pg_mgr = PostgresConnectionManager::new_from_stringlike(
-        env::var("DATABASE_URL").unwrap(),
-        NoTls
-    ).unwrap();
-    let pg_pool = Pool::builder().build(pg_mgr).await.unwrap();
+    let database_url = env
+        ::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set in the environment or .env file");
+    let redis_url = env
+        ::var("REDIS_URL")
+        .expect("REDIS_URL must be set in the environment or .env file");
 
-    let redis_mgr = RedisConnectionManager::new(env::var("REDIS_URL").unwrap()).unwrap();
-    let redis_pool = Pool::builder().build(redis_mgr).await.unwrap();
+    let pg_mgr = PostgresConnectionManager::new_from_stringlike(database_url, NoTls)?;
+    let pg_pool = Pool::builder().build(pg_mgr).await?;
+
+    let redis_mgr = RedisConnectionManager::new(redis_url)?;
+    let redis_pool = Pool::builder().build(redis_mgr).await?;
 
     let pg_client = pg_pool.get().await.unwrap();
     let rows = pg_client.query("SELECT 1", &[]).await.unwrap();
@@ -27,4 +31,6 @@ async fn main() {
     let _: () = redis_conn.set("key", "value").await.unwrap();
     let value: String = redis_conn.get("key").await.unwrap();
     println!("Redis query result: {}", value);
+
+    Ok(())
 }
