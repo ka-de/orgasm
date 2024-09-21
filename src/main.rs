@@ -34,20 +34,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ::var("REDIS_URL")
         .expect("REDIS_URL must be set in the environment or .env file");
 
+    println!("Initializing PostgreSQL connection pool...");
     let pg_mgr = PostgresConnectionManager::new_from_stringlike(database_url, NoTls)?;
-    let pg_pool = Pool::builder().build(pg_mgr).await?;
+    let pg_pool = match Pool::builder().build(pg_mgr).await {
+        Ok(pool) => {
+            println!("PostgreSQL connection pool created successfully.");
+            pool
+        }
+        Err(e) => {
+            eprintln!("Failed to create PostgreSQL connection pool: {}", e);
+            return Err(e.into());
+        }
+    };
 
+    println!("Initializing Redis connection pool...");
     let redis_mgr = RedisConnectionManager::new(redis_url)?;
-    let redis_pool = Pool::builder().build(redis_mgr).await?;
+    let redis_pool = match Pool::builder().build(redis_mgr).await {
+        Ok(pool) => {
+            println!("Redis connection pool created successfully.");
+            pool
+        }
+        Err(e) => {
+            eprintln!("Failed to create Redis connection pool: {}", e);
+            return Err(e.into());
+        }
+    };
 
-    let pg_client = pg_pool.get().await.unwrap();
-    let rows = pg_client.query("SELECT 1", &[]).await.unwrap();
-    println!("PostgreSQL query result: {:?}", rows);
+    println!("Attempting to get a PostgreSQL connection from the pool...");
+    let pg_client = match pg_pool.get().await {
+        Ok(client) => {
+            println!("Successfully acquired a PostgreSQL connection.");
+            client
+        }
+        Err(e) => {
+            eprintln!("Failed to get a PostgreSQL connection: {}", e);
+            return Err(e.into());
+        }
+    };
 
-    let mut redis_conn = redis_pool.get().await.unwrap();
-    let _: () = redis_conn.set("key", "value").await.unwrap();
-    let value: String = redis_conn.get("key").await.unwrap();
-    println!("Redis query result: {}", value);
+    println!("Executing PostgreSQL query...");
+    match pg_client.query("SELECT 1", &[]).await {
+        Ok(rows) => println!("PostgreSQL query result: {:?}", rows),
+        Err(e) => eprintln!("PostgreSQL query failed: {}", e),
+    }
+
+    println!("Attempting to get a Redis connection from the pool...");
+    let mut redis_conn = match redis_pool.get().await {
+        Ok(conn) => {
+            println!("Successfully acquired a Redis connection.");
+            conn
+        }
+        Err(e) => {
+            eprintln!("Failed to get a Redis connection: {}", e);
+            return Err(e.into());
+        }
+    };
+
+    println!("Executing Redis commands...");
+    match redis_conn.set::<_, _, ()>("key", "value").await {
+        Ok(_) => println!("Successfully set Redis key."),
+        Err(e) => eprintln!("Failed to set Redis key: {}", e),
+    }
+
+    match redis_conn.get::<_, String>("key").await {
+        Ok(value) => println!("Redis query result: {}", value),
+        Err(e) => eprintln!("Failed to get Redis value: {}", e),
+    }
 
     Ok(())
 }
