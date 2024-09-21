@@ -3,7 +3,7 @@ use bb8_postgres::PostgresConnectionManager;
 use bb8_redis::RedisConnectionManager;
 use redis::AsyncCommands;
 use tokio_postgres::NoTls;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use std::env;
 
 #[tokio::main]
