@@ -16,8 +16,8 @@ use tokio_postgres::NoTls;
 use dotenvy::dotenv;
 use std::env;
 use clap::Parser;
-use argon2::{ self, Config };
-use rand::Rng;
+use argon2::{ password_hash::{ SaltString, PasswordHasher }, Argon2 };
+use rand_core::OsRng;
 
 /// Command-line arguments for the application
 ///
@@ -193,11 +193,14 @@ async fn register_user(
     let client = pool.get().await?;
 
     // Generate a random salt
-    let salt: [u8; 32] = rand::thread_rng().gen();
-    let config = Config::default();
+    let salt = SaltString::generate(&mut OsRng);
 
     // Hash the password
-    let password_hash = argon2::hash_encoded(password.as_bytes(), &salt, &config)?;
+    let argon2 = Argon2::default();
+    let password_hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| format!("Failed to hash password: {}", e))?
+        .to_string();
 
     // Insert the new user into the database
     client.execute(
