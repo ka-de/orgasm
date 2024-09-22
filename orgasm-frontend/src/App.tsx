@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from './components/Layout';
 import ImageGrid from './components/ImageGrid';
+import RegisterForm from './components/RegisterForm';
 
 const App: React.FC = () => {
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+
   // Mock data for images
   const images = [
     { id: 1, url: 'https://picsum.photos/400/300?random=1', title: 'Image 1' },
@@ -57,10 +60,19 @@ const App: React.FC = () => {
     { id: 50, url: 'https://picsum.photos/400/300?random=50', title: 'Image 50' },
   ];
 
+  const handleSignUpClick = () => {
+    setShowRegisterForm(true);
+  };
+
+  const handleCloseRegisterForm = () => {
+    setShowRegisterForm(false);
+  };
+
   return (
-    <Layout>
+    <Layout onSignUpClick={handleSignUpClick}>
       <h2 className="text-3xl font-bold mb-6">Latest Images</h2>
       <ImageGrid images={images} />
+      {showRegisterForm && <RegisterForm onClose={handleCloseRegisterForm} />}
     </Layout>
   );
 };
