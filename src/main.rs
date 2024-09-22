@@ -16,6 +16,8 @@ use tokio_postgres::NoTls;
 use dotenvy::dotenv;
 use std::env;
 use clap::Parser;
+use argon2::{ self, Config };
+use rand::Rng;
 
 /// Command-line arguments for the application
 ///
@@ -63,6 +65,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     test_postgres_connection(&pg_pool).await?;
     test_redis_connection(&redis_pool).await?;
+
+    // Add this line to create the users table if it doesn't exist
+    create_users_table(&pg_pool).await?;
+
+    // Example usage of user registration
+    let username = "example_user";
+    let password = "secure_password123";
+    match register_user(&pg_pool, username, password).await {
+        Ok(_) => println!("User registered successfully!"),
+        Err(e) => eprintln!("Failed to register user: {}", e),
+    }
 
     Ok(())
 }
@@ -152,6 +165,45 @@ async fn test_redis_connection(
             eprintln!("Failed to connect to Redis.");
         }
     }
+
+    Ok(())
+}
+
+async fn create_users_table(
+    pool: &Pool<PostgresConnectionManager<NoTls>>
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = pool.get().await?;
+    client.execute(
+        "CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )",
+        &[]
+    ).await?;
+    Ok(())
+}
+
+async fn register_user(
+    pool: &Pool<PostgresConnectionManager<NoTls>>,
+    username: &str,
+    password: &str
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = pool.get().await?;
+
+    // Generate a random salt
+    let salt: [u8; 32] = rand::thread_rng().gen();
+    let config = Config::default();
+
+    // Hash the password
+    let password_hash = argon2::hash_encoded(password.as_bytes(), &salt, &config)?;
+
+    // Insert the new user into the database
+    client.execute(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+        &[&username, &password_hash]
+    ).await?;
 
     Ok(())
 }
